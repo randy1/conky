@@ -64,7 +64,7 @@ find_package(Threads)
 set(conky_libs ${CMAKE_THREAD_LIBS_INIT})
 set(conky_includes ${CMAKE_BINARY_DIR})
 
-add_definitions(-D_GNU_SOURCE) # Standard definitions
+add_definitions(-D_GNU_SOURCE -Wall -Werror) # Wall at least is not an optional
 set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_GNU_SOURCE")
 
 # Do version stuff
