@@ -87,7 +87,13 @@ namespace conky {
 		protected:
 			callback_base(size_t hash_, uint32_t period_, bool wait_, bool use_pipe)
 				: thread(NULL), hash(hash_), period(period_), remaining(0),
-				  pipefd(use_pipe ? pipe2(O_CLOEXEC) : std::pair<int, int>(-1, -1)),
+				  pipefd(use_pipe ?
+#ifdef __linux__
+						 pipe2(O_CLOEXEC) :
+#else
+						 pipe2(FD_CLOEXEC) :
+#endif
+						 std::pair<int, int>(-1, -1)),
 				  wait(wait_), done(false), unused(0)
 			{}
 
