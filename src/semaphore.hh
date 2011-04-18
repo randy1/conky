@@ -28,6 +28,7 @@
 #include <cstring>
 #include <stdexcept>
 
+#include <stdlib.h>
 #include <semaphore.h>
 
 class semaphore {
