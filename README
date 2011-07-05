@@ -1,0 +1,21 @@
+	*** DragonFly porting of conky system monitor ***
+
+Relevant changes from mainstream:
+
+*   Collapse processes() and running_processes() implemetation.
+
+    All funtionalities using kern.proc sysctl get grouped together
+    as in this case (at least) sysctl doesn't deal good with related
+    successive calls (first to determine size of object returned,
+    then to get the object self) from different threads.
+
+*   Use kern.proc.all_lwp instead of kern.proc.all
+
+    Without lwp info it's possible that running processes count is 0
+    (which clearly can't be). This is what we want too, as lwps are
+    what in the end cause system load.
+
+*   Add dfly specific kern.version substr (see dfly conkyrc sample)
+
+I'm using it since months, it's running stable; but watch out: even though
+showed values seem reasonable, i'm not 100% sure they are correct.
