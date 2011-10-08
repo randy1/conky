@@ -37,11 +37,13 @@ check_function_exists(strndup HAVE_STRNDUP)
 check_symbol_exists(pipe2 "unistd.h" HAVE_PIPE2)
 check_symbol_exists(O_CLOEXEC "fcntl.h" HAVE_O_CLOEXEC)
 
+if(OS_LINUX)
 AC_SEARCH_LIBS(clock_gettime "time.h" CLOCK_GETTIME_LIB "rt")
 if(NOT CLOCK_GETTIME_LIB)
 	message(FATAL_ERROR "clock_gettime not found.")
 endif(NOT CLOCK_GETTIME_LIB)
 set(conky_libs ${conky_libs} ${CLOCK_GETTIME_LIB})
+endif(OS_LINUX)
 
 # standard path to search for includes
 set(INCLUDE_SEARCH_PATH /usr/include /usr/local/include)

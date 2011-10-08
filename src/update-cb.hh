@@ -35,6 +35,10 @@
 
 #include <assert.h>
 
+#ifndef __linux__
+#include <fcntl.h>
+#endif
+
 #include "c++wrap.hh"
 #include "semaphore.hh"
 
