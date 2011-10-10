@@ -80,6 +80,9 @@ if(NOT OS_LINUX AND NOT OS_FREEBSD AND NOT OS_OPENBSD AND NOT OS_DRAGONFLY)
 endif(NOT OS_LINUX AND NOT OS_FREEBSD AND NOT OS_OPENBSD AND NOT OS_DRAGONFLY)
 
 if(BUILD_I18N)
+	if(OS_DRAGONFLY)
+		set(conky_libs ${conky_libs} -L/usr/pkg/lib)
+	endif(OS_DRAGONFLY)
 	set(conky_libs ${conky_libs} -lintl)
 endif(BUILD_I18N)
 
@@ -235,7 +238,7 @@ if(BUILD_X11)
 endif(BUILD_X11)
 
 pkg_search_module(LUA REQUIRED lua>=5.1 lua-5.1>=5.1 lua5.1>=5.1)
-set(conky_libs ${conky_libs} ${LUA_LIBRARIES})
+set(conky_libs ${conky_libs} ${LUA_LDFLAGS})
 set(conky_includes ${conky_includes} ${LUA_INCLUDE_DIRS})
 if(BUILD_LUA_CAIRO)
 	set(WANT_TOLUA true)
