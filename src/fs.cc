@@ -63,6 +63,10 @@
 #include <mntent.h>
 #endif
 
+#ifdef __DragonFly__
+#define statfs64 statfs
+#endif
+
 #define MAX_FS_STATS 64
 
 static struct fs_stat fs_stats_[MAX_FS_STATS];
