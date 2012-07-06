@@ -13,6 +13,10 @@
 #include <machine/apm_bios.h>
 #endif /* i386 || __i386__ */
 
+#ifndef HAVE_STATFS64
+#define statfs64 statfs
+#endif
+
 int get_entropy_avail(unsigned int *);
 int get_entropy_poolsize(unsigned int *);
 

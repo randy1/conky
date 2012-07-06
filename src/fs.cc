@@ -41,18 +41,8 @@
 
 #ifdef HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
-#ifndef HAVE_STATFS64
-#define statfs64 statfs
-#endif
 #endif
 
-/* freebsd && netbsd */
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-#ifdef HAVE_SYS_MOUNT_H
-#include <sys/mount.h>
-#endif
 #if defined(__FreeBSD__)
 #include "freebsd.h"
 #elif defined(__DragonFly__)
@@ -63,10 +53,6 @@
 #if !defined(HAVE_STRUCT_STATFS_F_FSTYPENAME) && \
 	!defined (__OpenBSD__) && !defined(__FreeBSD__) && !defined(__DragonFly__)
 #include <mntent.h>
-#endif
-
-#ifdef __DragonFly__
-#define statfs64 statfs
 #endif
 
 #define MAX_FS_STATS 64
