@@ -28,6 +28,10 @@
 #include <cstring>
 #include <stdexcept>
 
+#ifndef __linux__
+#include <stdlib.h>
+#endif
+
 #include <semaphore.h>
 
 class semaphore {
