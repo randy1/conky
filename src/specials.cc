@@ -36,9 +36,6 @@
 #include "nc.h"
 #include "specials.h"
 #include <math.h>
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif /* HAVE_SYS_PARAM_H */
 #include <algorithm>
 
 struct special_t *specials = NULL;
@@ -339,9 +336,9 @@ void new_gauge(struct text_object *obj, char *p, int p_max_size, double usage)
 		return;
 
 	if (g->flags & SF_SCALED)
-		g->scale = MAX(g->scale, usage);
+		g->scale = std::max(g->scale, usage);
 	else
-		usage = MIN(g->scale, usage);
+		usage = std::min(g->scale, usage);
 
 #ifdef BUILD_X11
 	if (out_to_x.get(*state))
@@ -599,9 +596,9 @@ void new_bar(struct text_object *obj, char *p, int p_max_size, double usage)
 		return;
 
 	if (b->flags & SF_SCALED)
-		b->scale = MAX(b->scale, usage);
+		b->scale = std::max(b->scale, usage);
 	else
-		usage = MIN(b->scale, usage);
+		usage = std::min(b->scale, usage);
 
 #ifdef BUILD_X11
 	if (out_to_x.get(*state))

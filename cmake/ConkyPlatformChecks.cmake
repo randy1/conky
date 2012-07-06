@@ -27,7 +27,6 @@ include(CheckSymbolExists)
 
 # Check for some headers
 check_include_files(sys/statfs.h HAVE_SYS_STATFS_H)
-check_include_files(sys/param.h HAVE_SYS_PARAM_H)
 check_include_files(sys/inotify.h HAVE_SYS_INOTIFY_H)
 check_include_files(dirent.h HAVE_DIRENT_H)
 
