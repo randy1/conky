@@ -32,11 +32,9 @@
 	exit 1
 }
 
-sed --version > /dev/null 2>&1 || SED=gsed
-
 outupper="`basename "$2" | tr '[a-z-.]' '[A-Z__]'`"
 
 (
 	printf "const char %s[] = \n" "$3"
-	${SED:-sed} -e 's/["\]/\\&/g' -e 's/^/\t"/' -e 's/$/\\n"/' -e '$s/$/;/' "$1"
-) > $2
+	sed -e 's/["\]/\\&/g' -e 's/^/    "/' -e 's/$/\\n"/' -e '$s/$/;/' "$1"
+) > "$2"

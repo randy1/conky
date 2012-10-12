@@ -122,6 +122,7 @@ namespace {
 	struct mpd_result {
 		std::string title;
 		std::string artist;
+		std::string albumartist;
 		std::string album;
 		std::string date;
 		std::string status;
@@ -303,7 +304,7 @@ if (b) a=b; else a="";
 	mpd_result get_mpd()
 	{
 		uint32_t period = std::max(
-					std::lround(music_player_interval.get(*state)/active_update_interval()), 1l
+					lround(music_player_interval.get(*state)/active_update_interval()), 1l
 				);
 		return conky::register_cb<mpd_cb>(period)->get_result_copy();
 	}
@@ -398,6 +399,7 @@ void print_mpd_##name(struct text_object *obj, char *p, int p_max_size) \
 
 MPD_PRINT_GENERATOR(title, "%s", .c_str())
 MPD_PRINT_GENERATOR(artist, "%s", .c_str())
+MPD_PRINT_GENERATOR(albumartist, "%s", .c_str())
 MPD_PRINT_GENERATOR(album, "%s", .c_str())
 MPD_PRINT_GENERATOR(date, "%s", .c_str())
 MPD_PRINT_GENERATOR(random, "%s", .c_str())
