@@ -58,7 +58,8 @@ endif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
 
 if(CMAKE_SYSTEM_NAME MATCHES "DragonFly")
     set(OS_DRAGONFLY true)
-    set(conky_libs ${conky_libs} -ldevstat)
+    set(conky_includes ${conky_includes} /usr/pkg/include)
+    set(conky_libs ${conky_libs} -L/usr/pkg/lib -ldevstat)
 endif(CMAKE_SYSTEM_NAME MATCHES "DragonFly")
 
 if(CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
@@ -78,6 +79,7 @@ if(NOT OS_LINUX AND NOT OS_FREEBSD AND NOT OS_OPENBSD AND NOT OS_DRAGONFLY)
 endif(NOT OS_LINUX AND NOT OS_FREEBSD AND NOT OS_OPENBSD AND NOT OS_DRAGONFLY)
 
 if(BUILD_I18N AND OS_DRAGONFLY)
+    set(conky_includes ${conky_includes} /usr/pkg/include/gettext)
 	set(conky_libs ${conky_libs} -lintl)
 endif(BUILD_I18N AND OS_DRAGONFLY)
 
