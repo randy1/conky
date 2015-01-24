@@ -171,6 +171,8 @@ int update_meminfo(void)
 	/* unsigned int a; */
 	char buf[256];
 
+	unsigned long long shmem = 0, sreclaimable = 0;
+
 	info.mem = info.memwithbuffers = info.memmax = info.memdirty = info.swap = info.swapfree = info.swapmax =
         info.bufmem = info.buffers = info.cached = info.memfree = info.memeasyfree = 0;
 
@@ -197,6 +199,10 @@ int update_meminfo(void)
 			sscanf(buf, "%*s %llu", &info.cached);
 		} else if (strncmp(buf, "Dirty:", 6) == 0) {
 			sscanf(buf, "%*s %llu", &info.memdirty);
+		} else if (strncmp(buf, "Shmem:", 6) == 0) {
+			sscanf(buf, "%*s %llu", &shmem);
+		} else if (strncmp(buf, "SReclaimable:", 13) == 0) {
+			sscanf(buf, "%*s %llu", &sreclaimable);
 		}
 	}
 
@@ -204,7 +210,16 @@ int update_meminfo(void)
 	info.memeasyfree = info.memfree;
 	info.swap = info.swapmax - info.swapfree;
 
-	info.bufmem = info.cached + info.buffers;
+	/* Reclaimable memory: does not include shared memory, which is part of cached but unreclaimable.
+	   Includes the reclaimable part of the Slab cache though.
+	   Note: when shared memory is swapped out, shmem decreases and swapfree decreases - we want this.
+	*/
+	info.bufmem = (info.cached - shmem) + info.buffers + sreclaimable;
+
+	/* Now (info.mem - info.bufmem) is the *really used* (aka unreclaimable) memory.
+	   When this value reaches the size of the physical RAM, and swap is full or non-present, OOM happens.
+	   Therefore this is the value users want to monitor, regarding their RAM.
+	*/
 
 	fclose(meminfo_fp);
 	return 0;
@@ -2092,7 +2107,7 @@ void get_battery_short_status(char *buffer, unsigned int n, const char *bat)
 	}
 }
 
-int get_battery_perct(const char *bat)
+int _get_battery_perct(const char *bat)
 {
 	static int rep = 0;
 	int idx;
@@ -2102,8 +2117,6 @@ int get_battery_perct(const char *bat)
 
 	snprintf(acpi_path, 127, ACPI_BATTERY_BASE_PATH "/%s/state", bat);
 	snprintf(sysfs_path, 127, SYSFS_BATTERY_BASE_PATH "/%s/uevent", bat);
-
-	init_batteries();
 
 	idx = get_battery_idx(bat);
 
@@ -2193,6 +2206,35 @@ int get_battery_perct(const char *bat)
 		(int) (((float) remaining_capacity / acpi_design_capacity[idx]) * 100);
 	if (last_battery_perct[idx] > 100) last_battery_perct[idx] = 100;
 	return last_battery_perct[idx];
+}
+
+int get_battery_perct(const char *bat)
+{
+	int idx, n = 0, total_capacity = 0, remaining_capacity;;
+#define BATTERY_LEN 8
+	char battery[BATTERY_LEN];
+
+	init_batteries();
+
+	/* Check if user asked for the mean percentage of all batteries. */
+	if (!strcmp(bat, "all")) {
+		for (idx = 0; idx < MAX_BATTERY_COUNT; idx++) {
+			snprintf(battery, BATTERY_LEN - 1, "BAT%d", idx);
+#undef BATTERY_LEN
+			remaining_capacity = _get_battery_perct(battery);
+			if (remaining_capacity > 0) {
+				total_capacity += remaining_capacity;
+				n++;
+			}
+		}
+
+		if (n == 0)
+			return 0;
+		else
+			return total_capacity / n;
+	} else {
+		return _get_battery_perct(bat);
+	}
 }
 
 double get_battery_perct_bar(struct text_object *obj)

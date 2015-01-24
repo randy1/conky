@@ -204,6 +204,13 @@ if(BUILD_X11)
 			set(conky_libs ${conky_libs} ${X11_Xdamage_LIB} ${X11_Xfixes_LIB})
 		endif(BUILD_XDAMAGE)
 
+		if(BUILD_XSHAPE)
+			if(NOT X11_Xshape_FOUND)
+				message(FATAL_ERROR "Unable to find Xshape library")
+			endif(NOT X11_Xshape_FOUND)
+			set(conky_libs ${conky_libs} ${X11_Xshape_LIB} )
+		endif(BUILD_XSHAPE)
+
 		# check for Xft
 		if(BUILD_XFT)
 			find_path(freetype_INCLUDE_PATH freetype/config/ftconfig.h ${INCLUDE_SEARCH_PATH}
@@ -234,9 +241,10 @@ if(BUILD_X11)
 	endif(X11_FOUND)
 endif(BUILD_X11)
 
-pkg_search_module(LUA REQUIRED lua5.1 lua-5.1 lua<=5.1.99)
+pkg_search_module(LUA REQUIRED lua5.2 lua-5.2 lua>=5.1 lua5.1 lua-5.1)
 set(conky_libs ${conky_libs} ${LUA_LIBRARIES})
 set(conky_includes ${conky_includes} ${LUA_INCLUDE_DIRS})
+link_directories(${LUA_LIBRARY_DIRS})
 if(BUILD_LUA_CAIRO)
 	set(WANT_TOLUA true)
 	pkg_check_modules(CAIRO REQUIRED cairo cairo-xlib)

@@ -411,7 +411,8 @@
         </term>
         <listitem>Battery percentage remaining of ACPI battery in a
         bar. ACPI battery number can be given as argument (default
-        is BAT0). 
+        is BAT0, use all to get the mean percentage remaining for
+        all batteries).
         <para /></listitem>
     </varlistentry>
     <varlistentry>
@@ -423,7 +424,8 @@
         </term>
         <listitem>Battery percentage remaining for ACPI battery.
         ACPI battery number can be given as argument (default is
-        BAT0). 
+        BAT0, use all to get the mean percentage remaining for
+        all batteries).
         <para /></listitem>
     </varlistentry>
     <varlistentry>
@@ -1675,6 +1677,16 @@
         temperatures from the IBM temperature sensors (N=0..7)
         Sensor 0 is on the CPU, 3 is on the GPU. 
         <para /></listitem>
+    </varlistentry>
+    <varlistentry>
+        <term>
+            <command>
+                <option>ibm_thinklight</option>
+            </command>
+        </term>
+        <listitem>If running the IBM ACPI, displays the status of your
+            ThinkLight™. Value is either 'on', 'off' or 'unknown'.
+            <para /></listitem>
     </varlistentry>
     <varlistentry>
         <term>
