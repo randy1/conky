@@ -509,6 +509,8 @@ struct text_object *construct_text_object(char *s, const char *arg,
 		obj->callbacks.print = &get_ibm_acpi_volume;
 	END OBJ(ibm_brightness, 0)
 		obj->callbacks.print = &get_ibm_acpi_brightness;
+	END OBJ(ibm_thinklight, 0)
+		obj->callbacks.print = &get_ibm_acpi_thinklight;
 #endif
 	/* information from sony_laptop kernel module
 	 * /sys/devices/platform/sony-laptop */
@@ -948,7 +950,7 @@ struct text_object *construct_text_object(char *s, const char *arg,
 		obj->callbacks.print = &print_machine;
 #if defined(__DragonFly__)
     END OBJ(version, 0)
-        obj->callbacks.print = &print_version;
+		obj->callbacks.print = &print_version;
 #endif
 	END OBJ(mails, 0)
 		parse_local_mail_args(obj, arg);
@@ -1421,6 +1423,9 @@ struct text_object *construct_text_object(char *s, const char *arg,
 	END OBJ(mpd_artist, 0)
 		mpd_set_maxlen(mpd_artist);
 		obj->callbacks.print = &print_mpd_artist;
+	END OBJ(mpd_albumartist, 0)
+		mpd_set_maxlen(mpd_albumartist);
+		obj->callbacks.print = &print_mpd_albumartist;
 	END OBJ(mpd_title, 0)
 		mpd_set_maxlen(mpd_title);
 		obj->callbacks.print = &print_mpd_title;

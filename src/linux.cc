@@ -79,6 +79,10 @@
 #define NBD_MAJOR 43
 #endif
 
+#if !defined(DM_MAJOR)
+#define DM_MAJOR 253
+#endif
+
 #ifdef BUILD_WLAN
 #include <iwlib.h>
 #endif
@@ -167,6 +171,8 @@ int update_meminfo(void)
 	/* unsigned int a; */
 	char buf[256];
 
+	unsigned long long shmem = 0, sreclaimable = 0;
+
 	info.mem = info.memwithbuffers = info.memmax = info.memdirty = info.swap = info.swapfree = info.swapmax =
         info.bufmem = info.buffers = info.cached = info.memfree = info.memeasyfree = 0;
 
@@ -193,6 +199,10 @@ int update_meminfo(void)
 			sscanf(buf, "%*s %llu", &info.cached);
 		} else if (strncmp(buf, "Dirty:", 6) == 0) {
 			sscanf(buf, "%*s %llu", &info.memdirty);
+		} else if (strncmp(buf, "Shmem:", 6) == 0) {
+			sscanf(buf, "%*s %llu", &shmem);
+		} else if (strncmp(buf, "SReclaimable:", 13) == 0) {
+			sscanf(buf, "%*s %llu", &sreclaimable);
 		}
 	}
 
@@ -200,7 +210,16 @@ int update_meminfo(void)
 	info.memeasyfree = info.memfree;
 	info.swap = info.swapmax - info.swapfree;
 
-	info.bufmem = info.cached + info.buffers;
+	/* Reclaimable memory: does not include shared memory, which is part of cached but unreclaimable.
+	   Includes the reclaimable part of the Slab cache though.
+	   Note: when shared memory is swapped out, shmem decreases and swapfree decreases - we want this.
+	*/
+	info.bufmem = (info.cached - shmem) + info.buffers + sreclaimable;
+
+	/* Now (info.mem - info.bufmem) is the *really used* (aka unreclaimable) memory.
+	   When this value reaches the size of the physical RAM, and swap is full or non-present, OOM happens.
+	   Therefore this is the value users want to monitor, regarding their RAM.
+	*/
 
 	fclose(meminfo_fp);
 	return 0;
@@ -512,12 +531,12 @@ int update_net_stats(void)
 		if (iw_get_basic_config(skfd, s, &(winfo->b)) > -1) {
 
 			// set present winfo variables
+			if (iw_get_range_info(skfd, s, &(winfo->range)) >= 0) {
+				winfo->has_range = 1;
+			}
 			if (iw_get_stats(skfd, s, &(winfo->stats),
 					&winfo->range, winfo->has_range) >= 0) {
 				winfo->has_stats = 1;
-			}
-			if (iw_get_range_info(skfd, s, &(winfo->range)) >= 0) {
-				winfo->has_range = 1;
 			}
 			if (iw_get_ext(skfd, s, SIOCGIWAP, &wrq) >= 0) {
 				winfo->has_ap_addr = 1;
@@ -2084,11 +2103,11 @@ void get_battery_short_status(char *buffer, unsigned int n, const char *bat)
 		memmove(buffer + 1, buffer + 5, n - 5);
 	} else if (0 != strncmp("AC", buffer, 2)) {
 		buffer[0] = 'U';
-		memmove(buffer + 1, buffer + 11, n - 11);
+		memmove(buffer + 1, buffer + 2, n - 2);
 	}
 }
 
-int get_battery_perct(const char *bat)
+int _get_battery_perct(const char *bat)
 {
 	static int rep = 0;
 	int idx;
@@ -2098,8 +2117,6 @@ int get_battery_perct(const char *bat)
 
 	snprintf(acpi_path, 127, ACPI_BATTERY_BASE_PATH "/%s/state", bat);
 	snprintf(sysfs_path, 127, SYSFS_BATTERY_BASE_PATH "/%s/uevent", bat);
-
-	init_batteries();
 
 	idx = get_battery_idx(bat);
 
@@ -2189,6 +2206,35 @@ int get_battery_perct(const char *bat)
 		(int) (((float) remaining_capacity / acpi_design_capacity[idx]) * 100);
 	if (last_battery_perct[idx] > 100) last_battery_perct[idx] = 100;
 	return last_battery_perct[idx];
+}
+
+int get_battery_perct(const char *bat)
+{
+	int idx, n = 0, total_capacity = 0, remaining_capacity;;
+#define BATTERY_LEN 8
+	char battery[BATTERY_LEN];
+
+	init_batteries();
+
+	/* Check if user asked for the mean percentage of all batteries. */
+	if (!strcmp(bat, "all")) {
+		for (idx = 0; idx < MAX_BATTERY_COUNT; idx++) {
+			snprintf(battery, BATTERY_LEN - 1, "BAT%d", idx);
+#undef BATTERY_LEN
+			remaining_capacity = _get_battery_perct(battery);
+			if (remaining_capacity > 0) {
+				total_capacity += remaining_capacity;
+				n++;
+			}
+		}
+
+		if (n == 0)
+			return 0;
+		else
+			return total_capacity / n;
+	} else {
+		return _get_battery_perct(bat);
+	}
 }
 
 double get_battery_perct_bar(struct text_object *obj)
@@ -2435,7 +2481,8 @@ int update_diskio(void)
 		 *
 		 * XXX: ignore devices which are part of a SW RAID (MD_MAJOR) */
 		if (col_count == 5 && major != LVM_BLK_MAJOR && major != NBD_MAJOR
-				&& major != RAMDISK_MAJOR && major != LOOP_MAJOR) {
+				&& major != RAMDISK_MAJOR && major != LOOP_MAJOR
+				&& major != DM_MAJOR) {
 			/* check needed for kernel >= 2.6.31, see sf #2942117 */
 			if (is_disk(devbuf)) {
 				total_reads += reads;
@@ -2579,8 +2626,10 @@ static void calc_io_each(void)
 static void process_parse_stat(struct process *process)
 {
 	char line[BUFFER_LEN] = { 0 }, filename[BUFFER_LEN], procname[BUFFER_LEN];
+	char cmdline[BUFFER_LEN] = { 0 }, cmdline_filename[BUFFER_LEN], cmdline_procname[BUFFER_LEN];
+	char tmpstr[BUFFER_LEN] = { 0 };
 	char state[4];
-	int ps;
+	int ps, cmdline_ps;
 	unsigned long user_time = 0;
 	unsigned long kernel_time = 0;
 	int rc;
@@ -2591,6 +2640,7 @@ static void process_parse_stat(struct process *process)
 	struct stat process_stat;
 
 	snprintf(filename, sizeof(filename), PROCFS_TEMPLATE, process->pid);
+	snprintf(cmdline_filename, sizeof(cmdline_filename), PROCFS_CMDLINE_TEMPLATE, process->pid);
 
 	ps = open(filename, O_RDONLY);
 	if (ps < 0) {
@@ -2611,6 +2661,54 @@ static void process_parse_stat(struct process *process)
 		return;
 	}
 
+	/* Read /proc/<pid>/cmdline */
+	cmdline_ps = open(cmdline_filename, O_RDONLY);
+	if (cmdline_ps < 0) {
+		/* The process must have finished in the last few jiffies! */
+		return;
+	}
+
+	endl = read(cmdline_ps, cmdline, BUFFER_LEN - 1);
+	close(cmdline_ps);
+	if (endl < 0) {
+		return;
+	}
+
+	/* Some processes have null-separated arguments, let's fix it */
+	for(int i = 0; i < endl; i++)
+		if (cmdline[i] == 0)
+			cmdline[i] = ' ';
+
+	cmdline[endl] = 0;
+	/* We want to transform for example "/usr/bin/python program.py" to "python program.py"
+	 * 1. search for first space
+	 * 2. search for last / before first space
+	 * 3. copy string from it's position */
+
+	char * space_ptr = strchr(cmdline, ' ');
+	if (space_ptr == NULL)
+	{
+		strcpy(tmpstr, cmdline);
+	}
+	else
+	{
+		long int space_pos = space_ptr - cmdline;
+		strncpy(tmpstr, cmdline, space_pos);
+		tmpstr[space_pos] = 0;
+	}
+
+	char * slash_ptr = strrchr(tmpstr, '/');
+	if (slash_ptr == NULL )
+	{
+		strncpy(cmdline_procname, cmdline, BUFFER_LEN);
+	}
+	else
+	{
+		long int slash_pos = slash_ptr - tmpstr;
+		strncpy(cmdline_procname, cmdline + slash_pos + 1, BUFFER_LEN - slash_pos);
+		cmdline_procname[BUFFER_LEN - slash_pos] = 0;
+	}
+
 	/* Extract cpu times from data in /proc filesystem */
 	lparen = strchr(line, '(');
 	rparen = strrchr(line, ')');
@@ -2620,6 +2718,10 @@ static void process_parse_stat(struct process *process)
 	rc = MIN((unsigned)(rparen - lparen - 1), sizeof(procname) - 1);
 	strncpy(procname, lparen + 1, rc);
 	procname[rc] = '\0';
+
+	if (strlen(procname) < strlen(cmdline_procname))
+		strncpy(procname, cmdline_procname, strlen(cmdline_procname)+1);
+
 	rc = sscanf(rparen + 1, "%3s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %lu "
 			"%lu %*s %*s %*s %d %*s %*s %*s %llu %llu", state, &process->user_time,
 			&process->kernel_time, &nice_val, &process->vsize, &process->rss);
@@ -2644,6 +2746,9 @@ static void process_parse_stat(struct process *process)
 
 		endl = read(ps, line, BUFFER_LEN - 1);
 		close(ps);
+		if(endl < 0)
+			return;
+		line[endl] = 0;
 
 		/* account for "kdeinit: " */
 		if ((char *) line == strstr(line, "kdeinit: ")) {

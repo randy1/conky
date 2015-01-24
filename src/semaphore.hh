@@ -25,10 +25,14 @@
 #define SEMAPHORE_HH
 
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 
+#ifndef __linux__
 #include <stdlib.h>
+#endif
+
 #include <semaphore.h>
 
 class semaphore {

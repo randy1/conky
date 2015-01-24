@@ -91,6 +91,10 @@ namespace priv {
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
 		curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1000);
 		curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60);
+
+		// curl's usage of alarm()+longjmp() is a really bad idea for multi-threaded applications
+		curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+
 	}
 
 
@@ -174,7 +178,7 @@ struct curl_data {
 /* prints result data to text buffer, used by $curl */
 void ccurl_process_info(char *p, int p_max_size, const std::string &uri, int interval)
 {
-	uint32_t period = std::max(std::lround(interval/active_update_interval()), 1l);
+	uint32_t period = std::max(lround(interval/active_update_interval()), 1l);
 	auto cb = conky::register_cb<simple_curl_cb>(period, uri);
 
 	strncpy(p, cb->get_result_copy().c_str(), p_max_size);

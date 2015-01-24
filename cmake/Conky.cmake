@@ -20,15 +20,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# Conky 2.x requires GCC 4.4 or newer
-try_compile(GCC4_WORKS
-	${CMAKE_CURRENT_BINARY_DIR}
-	${CMAKE_MODULE_PATH}/gcc44test.cc
-)
-if(NOT GCC4_WORKS)
-	message(FATAL_ERROR "Conky 2.x requires GCC 4.4.0 or newer")
-endif(NOT GCC4_WORKS)
-
 # Set system vars
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 	set(OS_LINUX true)
@@ -64,11 +55,13 @@ find_package(Threads)
 set(conky_libs ${CMAKE_THREAD_LIBS_INIT})
 set(conky_includes ${CMAKE_BINARY_DIR})
 
-if(OS_LINUX)
-	add_definitions(-D_GNU_SOURCE)
-else(OS_LINUX)
-	add_definitions(-Wall -Werror) # Wall at least is not an optional
-endif(OS_LINUX)
+if(OS_DRAGONFLY)
+add_definitions(-D_LARGEFILE64_SOURCE)
+else(OS_DRAGONFLY)
+add_definitions(-D_LARGEFILE64_SOURCE -D_POSIX_C_SOURCE=200809L) # Standard definitions
+set(CMAKE_REQUIRED_DEFINITIONS
+	"${CMAKE_REQUIRED_DEFINITIONS} -D_LARGEFILE64_SOURCE -D_POSIX_C_SOURCE=200809L")
+endif(OS_DRAGONFLY)
 
 # Do version stuff
 set(VERSION_MAJOR "2")
@@ -127,19 +120,20 @@ macro(AC_SEARCH_LIBS FUNCTION_NAME INCLUDES TARGET_VAR)
 		check_symbol_exists(${FUNCTION_NAME} ${INCLUDES} AC_SEARCH_LIBS_TMP)
 		if(${AC_SEARCH_LIBS_TMP})
 			set(${TARGET_VAR} "" CACHE INTERNAL "Library containing ${FUNCTION_NAME}")
-			return()
+		else(${AC_SEARCH_LIBS_TMP})
+			foreach(LIB ${ARGN})
+				unset(AC_SEARCH_LIBS_TMP CACHE)
+				unset(AC_SEARCH_LIBS_FOUND CACHE)
+				find_library(AC_SEARCH_LIBS_TMP ${LIB})
+				check_library_exists(${LIB} ${FUNCTION_NAME} ${AC_SEARCH_LIBS_TMP}
+									AC_SEARCH_LIBS_FOUND)
+				if(${AC_SEARCH_LIBS_FOUND})
+					set(${TARGET_VAR} ${AC_SEARCH_LIBS_TMP} CACHE INTERNAL
+							"Library containing ${FUNCTION_NAME}")
+					break()
+				endif(${AC_SEARCH_LIBS_FOUND})
+			endforeach(LIB)
 		endif(${AC_SEARCH_LIBS_TMP})
-
-		foreach(LIB ${ARGN})
-			unset(AC_SEARCH_LIBS_TMP CACHE)
-			unset(AC_SEARCH_LIBS_FOUND CACHE)
-			find_library(AC_SEARCH_LIBS_TMP ${LIB})
-			check_library_exists(${LIB} ${FUNCTION_NAME} ${AC_SEARCH_LIBS_TMP} AC_SEARCH_LIBS_FOUND)
-			if(${AC_SEARCH_LIBS_FOUND})
-				set(${TARGET_VAR} ${AC_SEARCH_LIBS_TMP} CACHE INTERNAL "Library containing ${FUNCTION_NAME}")
-				break()
-			endif(${AC_SEARCH_LIBS_FOUND})
-		endforeach(LIB)
 	endif("${TARGET_VAR}" MATCHES "^${TARGET_VAR}$")
 endmacro(AC_SEARCH_LIBS)
 endif(OS_LINUX)

@@ -411,7 +411,8 @@
         </term>
         <listitem>Battery percentage remaining of ACPI battery in a
         bar. ACPI battery number can be given as argument (default
-        is BAT0). 
+        is BAT0, use all to get the mean percentage remaining for
+        all batteries).
         <para /></listitem>
     </varlistentry>
     <varlistentry>
@@ -423,7 +424,8 @@
         </term>
         <listitem>Battery percentage remaining for ACPI battery.
         ACPI battery number can be given as argument (default is
-        BAT0). 
+        BAT0, use all to get the mean percentage remaining for
+        all batteries).
         <para /></listitem>
     </varlistentry>
     <varlistentry>
@@ -1679,6 +1681,16 @@
     <varlistentry>
         <term>
             <command>
+                <option>ibm_thinklight</option>
+            </command>
+        </term>
+        <listitem>If running the IBM ACPI, displays the status of your
+            ThinkLight™. Value is either 'on', 'off' or 'unknown'.
+            <para /></listitem>
+    </varlistentry>
+    <varlistentry>
+        <term>
+            <command>
                 <option>ibm_volume</option>
             </command>
         </term>
@@ -2469,6 +2481,15 @@
         </term>
         <listitem>Artist in current MPD song must be enabled at
         compile 
+        <para /></listitem>
+    </varlistentry>
+    <varlistentry>
+        <term>
+            <command>
+                <option>mpd_albumartist</option>
+            </command>
+        </term>
+        <listitem>Artist of the album of the current MPD song. 
         <para /></listitem>
     </varlistentry>
     <varlistentry>

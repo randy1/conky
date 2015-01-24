@@ -34,21 +34,45 @@ if(BUILD_LUA_CAIRO)
 	# if you have a better solution, please let me know
 	wrap_tolua(luacairo_src cairo.pkg libcairo.patch)
 
-	add_library(cairo SHARED ${luacairo_src})
+	add_library(conky-cairo SHARED ${luacairo_src})
+	set_target_properties(conky-cairo PROPERTIES OUTPUT_NAME "cairo")
 
-	target_link_libraries(cairo ${luacairo_libs} ${TOLUA_LIBS})
-	set(lua_libs ${lua_libs} cairo)
+	target_link_libraries(conky-cairo ${luacairo_libs} ${TOLUA_LIBS})
+	set(lua_libs ${lua_libs} conky-cairo)
 endif(BUILD_LUA_CAIRO)
 
 if(BUILD_LUA_IMLIB2)
 	include_directories(${luaimlib2_includes} ${CMAKE_CURRENT_SOURCE_DIR})
 	wrap_tolua(luaimlib2_src imlib2.pkg)
 
-	add_library(imlib2 SHARED ${luaimlib2_src})
+	add_library(conky-imlib2 SHARED ${luaimlib2_src})
+	set_target_properties(conky-imlib2 PROPERTIES OUTPUT_NAME "imlib2")
 
-	target_link_libraries(imlib2 ${luaimlib2_libs} ${TOLUA_LIBS})
-	set(lua_libs ${lua_libs} imlib2)
+	target_link_libraries(conky-imlib2 ${luaimlib2_libs} ${TOLUA_LIBS})
+	set(lua_libs ${lua_libs} conky-imlib2)
 endif(BUILD_LUA_IMLIB2)
+
+if(BUILD_LUA_RSVG)
+	include_directories(${luarsvg_includes} ${CMAKE_CURRENT_SOURCE_DIR})
+	wrap_tolua(luarsvg_src rsvg.pkg)
+
+	add_library(conky-rsvg SHARED ${luarsvg_src})
+	set_target_properties(conky-rsvg PROPERTIES OUTPUT_NAME "rsvg")
+
+	target_link_libraries(conky-rsvg ${luarsvg_libs} ${TOLUA_LIBS})
+	set(lua_libs ${lua_libs} conky-rsvg)
+endif(BUILD_LUA_RSVG)
+
+if(BUILD_LUA_CAIRO AND BUILD_LUA_IMLIB2)
+	include_directories(${luacairo_includes} ${luaimlib2_includes} ${CMAKE_CURRENT_SOURCE_DIR})
+	wrap_tolua(luacairo_imlib2_helper_src cairo_imlib2_helper.pkg)
+
+	add_library(conky-cairo_imlib2_helper SHARED ${luacairo_imlib2_helper_src})
+	set_target_properties(conky-cairo_imlib2_helper PROPERTIES OUTPUT_NAME "cairo_imlib2_helper")
+
+	target_link_libraries(conky-cairo_imlib2_helper ${luacairo_libs} ${luaimlib2_libs} ${TOLUA_LIBS})
+	set(lua_libs ${lua_libs} conky-cairo_imlib2_helper)
+endif(BUILD_LUA_CAIRO AND BUILD_LUA_IMLIB2)
 
 install(TARGETS
 	${lua_libs}

@@ -720,7 +720,7 @@ void human_readable(long long num, char *buf, int size)
 
 	/* Possibly just output as usual, for example for stdout usage */
 	if (not format_human_readable.get(*state)) {
-		spaced_print(buf, size, "%d", 6, round_to_int(num));
+		spaced_print(buf, size, "%lld", 6, num);
 		return;
 	}
 	if (short_units.get(*state)) {
@@ -1007,7 +1007,7 @@ static int get_string_width_special(char *s, int special_index)
 						if(current_after_font->type == FONT) {
 							influenced_by_font[i]=0;
 							break;
-						} else strcpy(&influenced_by_font[i], &influenced_by_font[i+1]);
+						} else memmove(&influenced_by_font[i], &influenced_by_font[i+1], strlen(&influenced_by_font[i+1]) + 1);
 					}
 				}
 				//add the length of influenced_by_font in the new font to width
@@ -1019,7 +1019,8 @@ static int get_string_width_special(char *s, int special_index)
 				//make sure there chars counted in the new font are not again counted in the old font
 				int specials_skipped=0;
 				while(i>0) {
-					if(p[specials_skipped]!=1) strcpy(&p[specials_skipped], &p[specials_skipped+1]); else specials_skipped++;
+					if(p[specials_skipped]!=1) memmove(&p[specials_skipped], &p[specials_skipped+1], strlen(&p[specials_skipped+1]) + 1);
+					else specials_skipped++;
 					i--;
 				}
 			}
@@ -1553,7 +1554,7 @@ int draw_each_line_inner(char *s, int special_index, int last_special_applied)
 					w = current->width;
 					if (w == 0) {
 						w = text_start_x + text_width - cur_x - 1;
-						current->graph_width = w - 1;
+						current->graph_width = MAX(w - 1, 0);
 						if (current->graph_width != current->graph_allocated) {
 							w = current->graph_allocated + 1;
 						}
@@ -1605,7 +1606,7 @@ int draw_each_line_inner(char *s, int special_index, int last_special_applied)
 									set_foreground_color(tmpcolour[
 											(int)((float)(w - 2) -
 												current->graph[j] * (w - 2) /
-												(float)current->scale)
+												std::max((float)current->scale, 1.0f))
 											]);
 								} else {
 									set_foreground_color(tmpcolour[colour_idx++]);
@@ -1911,8 +1912,8 @@ static void draw_stuff(void)
 		if(!append_fpointer)
 			NORM_ERR("Cannot append to '%s'", append_file.get(*state).c_str());
 	}
-	llua_draw_pre_hook();
 #ifdef BUILD_X11
+	llua_draw_pre_hook();
 	if (out_to_x.get(*state)) {
 		selected_font = 0;
 		if (draw_shades.get(*state) && !draw_outline.get(*state)) {
@@ -1950,8 +1951,8 @@ static void draw_stuff(void)
 #endif /* BUILD_X11 */
 	draw_mode = FG;
 	draw_text();
-	llua_draw_post_hook();
 #if defined(BUILD_X11)
+	llua_draw_post_hook();
 #if defined(BUILD_XDBE)
 	if (out_to_x.get(*state)) {
 		xdbe_swap_buffers();
@@ -2014,7 +2015,7 @@ static void update_text(void)
 }
 
 #ifdef HAVE_SYS_INOTIFY_H
-int inotify_fd;
+int inotify_fd = -1;
 #endif
 
 static void main_loop(void)
@@ -2481,7 +2482,7 @@ static void main_loop(void)
 		} else if (disable_auto_reload.get(*state) && inotify_fd != -1) {
 			inotify_rm_watch(inotify_fd, inotify_config_wd);
 			close(inotify_fd);
-			inotify_fd = inotify_config_wd = 0;
+			inotify_fd = inotify_config_wd = -1;
 		}
 #endif /* HAVE_SYS_INOTIFY_H */
 
@@ -2494,7 +2495,7 @@ static void main_loop(void)
 	if (inotify_fd != -1) {
 		inotify_rm_watch(inotify_fd, inotify_config_wd);
 		close(inotify_fd);
-		inotify_fd = inotify_config_wd = 0;
+		inotify_fd = inotify_config_wd = -1;
 	}
 #endif /* HAVE_SYS_INOTIFY_H */
 }
@@ -2825,6 +2826,13 @@ void set_current_config() {
 
 	if (current_config.empty()) {
 		/* Try to use personal config file first */
+		std::string buf = to_real_path(XDG_CONFIG_FILE);
+		if (stat(buf.c_str(), &s) == 0)
+			current_config = buf;
+	}
+
+	if (current_config.empty()) {
+		/* Try to use personal config file first */
 		std::string buf = to_real_path(CONFIG_FILE);
 		if (stat(buf.c_str(), &s) == 0)
 			current_config = buf;
@@ -2872,6 +2880,7 @@ void initialisation(int argc, char **argv) {
 	while (1) {
 		int c = getopt_long(argc, argv, getopt_string, longopts, NULL);
 		int startup_pause;
+		char *conv_end;
 
 		if (c == -1) {
 			break;
@@ -2921,22 +2930,26 @@ void initialisation(int argc, char **argv) {
 				break;
 
 			case 'u':
-				state->pushstring(optarg);
+				state->pushinteger(strtol(optarg, &conv_end, 10));
+				if(*conv_end != 0) { CRIT_ERR(NULL, NULL, "'%s' is a wrong update-interval", optarg); }
 				update_interval.lua_set(*state);
 				break;
 
 			case 'i':
-				state->pushstring(optarg);
+				state->pushinteger(strtol(optarg, &conv_end, 10));
+				if(*conv_end != 0) { CRIT_ERR(NULL, NULL, "'%s' is a wrong number of update-times", optarg); }
 				total_run_times.lua_set(*state);
 				break;
 #ifdef BUILD_X11
 			case 'x':
-				state->pushstring(optarg);
+				state->pushinteger(strtol(optarg, &conv_end, 10));
+				if(*conv_end != 0) { CRIT_ERR(NULL, NULL, "'%s' is a wrong value for the X-position", optarg); }
 				gap_x.lua_set(*state);
 				break;
 
 			case 'y':
-				state->pushstring(optarg);
+				state->pushinteger(strtol(optarg, &conv_end, 10));
+				if(*conv_end != 0) { CRIT_ERR(NULL, NULL, "'%s' is a wrong value for the Y-position", optarg); }
 				gap_y.lua_set(*state);
 				break;
 #endif /* BUILD_X11 */
