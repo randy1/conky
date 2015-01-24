@@ -184,7 +184,7 @@ int update_apcupsd(void)
 {
 	int i;
 	APCUPSD_S apc;
-	int sock;
+	int sock = -1;
 
 	for (i = 0; i < _APCUPSD_COUNT; ++i)
 		memcpy(apc.items[i], "N/A", 4); // including \0

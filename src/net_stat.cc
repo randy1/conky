@@ -90,16 +90,17 @@ struct net_stat *get_net_stat(const char *dev, void *free_at_crash1, void *free_
 
 void parse_net_stat_arg(struct text_object *obj, const char *arg, void *free_at_crash)
 {
-	bool shownetmask = false;
-	bool showscope = false;
-	char nextarg[21];	//longest arg possible is a devname (max 20 chars)
-	int i=0;
 	struct net_stat *netstat = NULL;
 
 	if (!arg)
 		arg = DEFAULTNETDEV;
 
-	while(sscanf(arg+i, " %20s", nextarg) == 1) {
+#ifdef BUILD_IPV6
+	bool shownetmask = false;
+	bool showscope = false;
+	char nextarg[21];   //longest arg possible is a devname (max 20 chars)
+
+	for (int i = 0; sscanf(arg+i, " %20s", nextarg) == 1; ) {
 		if(strcmp(nextarg, "-n") == 0 || strcmp(nextarg, "--netmask") == 0) shownetmask = true;
 		else if(strcmp(nextarg, "-s") == 0 || strcmp(nextarg, "--scope") == 0) showscope = true;
 		else if(nextarg[0]=='-') {	//multiple flags in 1 arg
@@ -112,12 +113,11 @@ void parse_net_stat_arg(struct text_object *obj, const char *arg, void *free_at_
 		i+=strlen(nextarg);	//skip this arg
 		while( ! (isspace(arg[i]) || arg[i] == 0)) i++; //and skip the spaces in front of it
 	}
-	if(netstat == NULL) netstat = get_net_stat(DEFAULTNETDEV, obj, free_at_crash);
-
-#ifdef BUILD_IPV6
 	netstat->v6show_nm = shownetmask;
 	netstat->v6show_sc = showscope;
 #endif /* BUILD_IPV6 */
+
+    if(netstat == NULL) netstat = get_net_stat(DEFAULTNETDEV, obj, free_at_crash);
 	obj->data.opaque = netstat;
 }
 

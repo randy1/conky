@@ -249,7 +249,7 @@ char *scan_graph(struct text_object *obj, const char *args, double defscale)
 		/* escape quotes at end in case of execgraph */
 		if (*buf == '"') {
 			char *_ptr;
-			size_t _size;
+			size_t _size = 0;
 			if ((_ptr = const_cast<char*>(strrchr(args, '"')))) {
 				_size = _ptr - args - 1;
 			}

@@ -761,7 +761,7 @@ void imap_cb::unseen_command(unsigned long old_unseen, unsigned long old_message
 
 void imap_cb::work()
 {
-	int sockfd, numbytes;
+	int sockfd = -1, numbytes;
 	char recvbuf[MAXDATASIZE];
 	unsigned long old_unseen = ULONG_MAX;
 	unsigned long old_messages = ULONG_MAX;
@@ -947,7 +947,7 @@ void print_imap_messages(struct text_object *obj, char *p, int p_max_size)
 
 void pop3_cb::work()
 {
-	int sockfd;
+	int sockfd = -1;
 	char recvbuf[MAXDATASIZE];
 	char *reply;
 	unsigned long old_unseen = ULONG_MAX;

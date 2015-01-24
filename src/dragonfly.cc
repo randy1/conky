@@ -142,7 +142,7 @@ int check_mount(char *s)
 int update_meminfo(void)
 {
 	u_int total_pages, inactive_pages, free_pages;
-	unsigned long swap_avail, swap_free;
+	unsigned long swap_avail = 0, swap_free = 0;
 
 	int pagesize = getpagesize();
 
