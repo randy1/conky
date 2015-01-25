@@ -179,75 +179,52 @@ int update_meminfo(void)
 
 int update_net_stats(void)
 {
-	struct net_stat *ns;
-	double delta;
-	long long r, t, last_recv, last_trans;
-	struct ifaddrs *ifap, *ifa;
-	struct if_data *ifd;
+	struct ifmibdata ifmd;
+	int if_n, mib_name[6] = {
+		CTL_NET, PF_LINK, NETLINK_GENERIC, IFMIB_SYSTEM, IFMIB_IFCOUNT, 0
+	};
+	size_t mib_len = sizeof(if_n);
 
-	/* get delta */
-	delta = current_update_time - last_update_time;
+	double delta = current_update_time - last_update_time;
 	if (delta <= 0.0001) {
 		return 0;
 	}
 
-	if (getifaddrs(&ifap) < 0) {
-		return 0;
-	}
+    if (sysctl(mib_name, 5, &if_n, &mib_len, 0, 0) >= 0) {
 
-	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-		ns = get_net_stat((const char *) ifa->ifa_name, NULL, NULL);
+		for (int idx = 1; idx <= if_n; idx++) {
+			struct ifmibdata ifmd;
+			size_t mib_len = sizeof(ifmd);
+			int mib_name[6] = {
+				CTL_NET, PF_LINK, NETLINK_GENERIC,
+				IFMIB_IFDATA, idx, IFDATA_GENERAL
+			};
 
-		if (ifa->ifa_flags & IFF_UP) {
-			struct ifaddrs *iftmp;
+            if (sysctl(mib_name, 6, &ifmd, &mib_len, 0, 0) >= 0) {
+				struct net_stat *ns =
+					get_net_stat((const char *) ifmd.ifmd_name, NULL, NULL);
 
-			ns->up = 1;
-			last_recv = ns->recv;
-			last_trans = ns->trans;
+				ns->up = ifmd.ifmd_flags & IFF_UP;
 
-			if (ifa->ifa_addr->sa_family != AF_LINK) {
-				continue;
-			}
+				if (ns->up) {
+					struct if_data *ifmdata = &ifmd.ifmd_data;
+					long long last_recv = ns->recv, last_trans = ns->trans,
+						r = ifmdata->ifi_ibytes, t = ifmdata->ifi_obytes;
 
-			for (iftmp = ifa->ifa_next;
-				 iftmp != NULL && strcmp(ifa->ifa_name, iftmp->ifa_name) == 0;
-				 iftmp = iftmp->ifa_next) {
-				if (iftmp->ifa_addr->sa_family == AF_INET) {
-					memcpy(&(ns->addr), iftmp->ifa_addr,
-						iftmp->ifa_addr->sa_len);
+					ns->recv += (r < ns->last_read_recv) ?
+						((long long) 4294967295U - ns->last_read_recv + r) :
+						(r - ns->last_read_recv);
+					ns->trans += (t < ns->last_read_trans) ?
+						((long long) 4294967295U - ns->last_read_trans + t) :
+						(t - ns->last_read_trans);
+					ns->last_read_recv = r;
+					ns->last_read_trans = t;
+					ns->recv_speed = (ns->recv - last_recv) / delta;
+					ns->trans_speed = (ns->trans - last_trans) / delta;
 				}
 			}
-
-			ifd = (struct if_data *) ifa->ifa_data;
-			r = ifd->ifi_ibytes;
-			t = ifd->ifi_obytes;
-
-			if (r < ns->last_read_recv) {
-				ns->recv += ((long long) 4294967295U - ns->last_read_recv) + r;
-			} else {
-				ns->recv += (r - ns->last_read_recv);
-			}
-
-			ns->last_read_recv = r;
-
-			if (t < ns->last_read_trans) {
-				ns->trans += ((long long) 4294967295U -
-					ns->last_read_trans) + t;
-			} else {
-				ns->trans += (t - ns->last_read_trans);
-			}
-
-			ns->last_read_trans = t;
-
-			/* calculate speeds */
-			ns->recv_speed = (ns->recv - last_recv) / delta;
-			ns->trans_speed = (ns->trans - last_trans) / delta;
-		} else {
-			ns->up = 0;
 		}
 	}
-
-	freeifaddrs(ifap);
 	return 0;
 }
 
